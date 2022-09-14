@@ -1,4 +1,5 @@
 from ._optical_flow import KittiFlow, Sintel, FlyingChairs, FlyingThings3D, HD1K
+from .a2d2 import A2D2Segmentation
 from .caltech import Caltech101, Caltech256
 from .celeba import CelebA
 from .cifar import CIFAR10, CIFAR100
@@ -105,4 +106,5 @@ __all__ = (
     "FGVCAircraft",
     "EuroSAT",
     "RenderedSST2",
+    "A2D2Segmentation",
 )
