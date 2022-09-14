@@ -21,6 +21,7 @@ def get_dataset(dir_path, name, image_set, transform):
         "voc": (dir_path, torchvision.datasets.VOCSegmentation, 21),
         "voc_aug": (dir_path, sbd, 21),
         "coco": (dir_path, get_coco, 21),
+        "a2d2": (dir_path, torchvision.datasets.A2D2Segmentation, 38),
     }
     p, ds_fn, num_classes = paths[name]
 
