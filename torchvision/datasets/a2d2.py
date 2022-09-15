@@ -125,8 +125,8 @@ class A2D2Segmentation(VisionDataset):
         transform=None,
         target_transform=None,
         transforms=None,
-        # Boundaries for train, val, test (empty by default) image sets.
-        split=(0.8, 1.0),
+        # Boundaries for train, val, test image sets.
+        split=(0.8, 0.9),
         mono_labels=True,
     ):
         super().__init__(root, transforms, transform, target_transform)
