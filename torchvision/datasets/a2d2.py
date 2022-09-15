@@ -73,12 +73,14 @@ def label_mono_path(id, root):
 
 
 def segmentation_ids(root):
+    """Gather IDs of available segmentation labels for given root."""
     labels = sorted(glob(label_path(('*', '*', '*'), root)))
     ids = [id(label, root) for label in labels]
     return ids
 
 
 def convert_label(id, root, hex_to_id):
+    """Convert RGB-encoded label to mono label."""
     path = label_path(id, root)
     mono_path = label_mono_path(id, root)
     os.makedirs(os.path.dirname(mono_path), exist_ok=True)
@@ -164,8 +166,6 @@ class A2D2Segmentation(VisionDataset):
         if self.mono_labels:
             target = Image.open(label_mono_path(id, self.root))
         else:
-            # TODO: Use PIL here too. Transforms below work only for PIL images.
-            # target = cv.imread(label_path(id, self.root))
             target = np.asarray(Image.open(image_path(id, self.root)).convert("RGB"))
             target = rgb_label_to_mono(target, self.hex_to_id)
             target = Image.fromarray(target)
