@@ -78,6 +78,33 @@ def segmentation_ids(root):
     return ids
 
 
+def convert_label(id, root, hex_to_id):
+    path = label_path(id, root)
+    mono_path = label_mono_path(id, root)
+    os.makedirs(os.path.dirname(mono_path), exist_ok=True)
+    label = np.asarray(Image.open(path).convert("RGB"))
+    label_mono = rgb_label_to_mono(label, hex_to_id)
+    Image.fromarray(label_mono).save(mono_path)
+    print('%s converted to %s.' % (path, mono_path))
+
+
+def convert_label_wrapper(args):
+    return convert_label(*args)
+
+
+def convert_labels(ids, root, hex_to_id, n_jobs=1):
+    if n_jobs == 1:
+        for id in tqdm(ids, desc='Converting labels'):
+            convert_label(id, root, hex_to_id)
+        return
+
+    from multiprocessing import cpu_count, Pool
+    if n_jobs < 1:
+        n_jobs = cpu_count()
+    pool = Pool(n_jobs)
+    pool.map(convert_label_wrapper, [(id, root, hex_to_id) for id in ids])
+
+
 def rgb_label_to_mono(label, rgb_to_id):
     mono = np.full(label.shape[:2], LABEL_IGNORE, dtype=np.uint8)
     for rgb, id in rgb_to_id.items():
@@ -124,14 +151,8 @@ class A2D2Segmentation(VisionDataset):
         self.hex_to_id = parse_class_list(self.class_list)
         self.mono_labels = mono_labels
 
-    def convert_labels(self):
-        for id in tqdm(self.ids, desc='Converting labels'):
-            path = label_path(id, self.root)
-            mono_path = label_mono_path(id, self.root)
-            os.makedirs(os.path.dirname(mono_path), exist_ok=True)
-            label = np.asarray(Image.open(path).convert("RGB"))
-            label_mono = rgb_label_to_mono(label, self.hex_to_id)
-            Image.fromarray(label_mono).save(mono_path)
+    def convert_labels(self, n_jobs=1):
+        convert_labels(self.ids, self.root, self.hex_to_id, n_jobs=n_jobs)
 
     def __len__(self):
         return len(self.ids)
@@ -158,7 +179,7 @@ class A2D2Segmentation(VisionDataset):
 def main():
     dataset = A2D2Segmentation('.')
     print(dataset)
-    dataset.convert_labels()
+    dataset.convert_labels(n_jobs=1)
 
 
 if __name__ == '__main__':
