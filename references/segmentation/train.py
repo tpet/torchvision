@@ -139,6 +139,7 @@ def main(args):
     dataset, num_classes = get_dataset(args.data_path, args.dataset, "train", get_transform(True, args), **kwargs)
     dataset_test, _ = get_dataset(args.data_path, args.dataset, "val", get_transform(False, args), **kwargs)
 
+    num_inputs = dataset[0][0].shape[0]
     if args.num_outputs:
         num_classes = args.num_outputs
 
@@ -163,7 +164,8 @@ def main(args):
     )
 
     model = torchvision.models.segmentation.__dict__[args.model](
-        weights=args.weights, weights_backbone=args.weights_backbone, num_classes=num_classes, aux_loss=args.aux_loss
+        weights=args.weights, weights_backbone=args.weights_backbone, num_inputs=num_inputs, num_classes=num_classes,
+        aux_loss=args.aux_loss
     )
     model.to(device)
     if args.distributed:
