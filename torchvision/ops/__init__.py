@@ -20,6 +20,7 @@ from .feature_pyramid_network import FeaturePyramidNetwork
 from .focal_loss import sigmoid_focal_loss
 from .giou_loss import generalized_box_iou_loss
 from .misc import FrozenBatchNorm2d, Conv2dNormActivation, Conv3dNormActivation, SqueezeExcitation, MLP, Permute
+from .nan_loss import nan_loss, nan_mse_loss
 from .poolers import MultiScaleRoIAlign
 from .ps_roi_align import ps_roi_align, PSRoIAlign
 from .ps_roi_pool import ps_roi_pool, PSRoIPool
@@ -70,4 +71,6 @@ __all__ = [
     "DropBlock2d",
     "drop_block3d",
     "DropBlock3d",
+    "nan_loss",
+    "nan_mse_loss",
 ]
