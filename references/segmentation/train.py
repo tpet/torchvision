@@ -13,7 +13,7 @@ from torch import nn
 from torchvision.transforms import functional as F, InterpolationMode
 
 
-def get_dataset(dir_path, name, image_set, transform):
+def get_dataset(dir_path, name, image_set, transform, **kwargs):
     def sbd(*args, **kwargs):
         return torchvision.datasets.SBDataset(*args, mode="segmentation", **kwargs)
 
@@ -26,7 +26,7 @@ def get_dataset(dir_path, name, image_set, transform):
     }
     p, ds_fn, num_classes = paths[name]
 
-    ds = ds_fn(p, image_set=image_set, transforms=transform)
+    ds = ds_fn(p, image_set=image_set, transforms=transform, **kwargs)
     return ds, num_classes
 
 
@@ -135,8 +135,9 @@ def main(args):
     else:
         torch.backends.cudnn.benchmark = True
 
-    dataset, num_classes = get_dataset(args.data_path, args.dataset, "train", get_transform(True, args))
-    dataset_test, _ = get_dataset(args.data_path, args.dataset, "val", get_transform(False, args))
+    kwargs = eval(args.dataset_kwargs) if args.dataset_kwargs else {}
+    dataset, num_classes = get_dataset(args.data_path, args.dataset, "train", get_transform(True, args), **kwargs)
+    dataset_test, _ = get_dataset(args.data_path, args.dataset, "val", get_transform(False, args), **kwargs)
 
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
@@ -256,6 +257,7 @@ def get_args_parser(add_help=True):
 
     parser.add_argument("--data-path", default="/datasets01/COCO/022719/", type=str, help="dataset path")
     parser.add_argument("--dataset", default="coco", type=str, help="dataset name")
+    parser.add_argument("--dataset-kwargs", default={}, type=str, help="optional dataset key-value arguments")
     parser.add_argument("--model", default="fcn_resnet101", type=str, help="model name")
     parser.add_argument("--aux-loss", action="store_true", help="auxiliar loss")
     parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
