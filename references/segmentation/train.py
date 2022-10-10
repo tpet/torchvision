@@ -139,6 +139,9 @@ def main(args):
     dataset, num_classes = get_dataset(args.data_path, args.dataset, "train", get_transform(True, args), **kwargs)
     dataset_test, _ = get_dataset(args.data_path, args.dataset, "val", get_transform(False, args), **kwargs)
 
+    if args.num_outputs:
+        num_classes = args.num_outputs
+
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
         test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test, shuffle=False)
@@ -259,6 +262,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--dataset", default="coco", type=str, help="dataset name")
     parser.add_argument("--dataset-kwargs", default={}, type=str, help="optional dataset key-value arguments")
     parser.add_argument("--model", default="fcn_resnet101", type=str, help="model name")
+    parser.add_argument("--num-outputs", default=None, type=int, help="number of outputs (classes)")
     parser.add_argument("--aux-loss", action="store_true", help="auxiliar loss")
     parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
     parser.add_argument(
