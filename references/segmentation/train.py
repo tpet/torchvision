@@ -62,9 +62,11 @@ def criterion(inputs, target):
     return losses["out"] + 0.5 * losses["aux"]
 
 
-def evaluate(model, data_loader, device, num_classes):
+def evaluate(model, data_loader, device, num_classes, metric=None):
     model.eval()
-    confmat = utils.ConfusionMatrix(num_classes)
+    if metric is None:
+        confmat = utils.ConfusionMatrix(num_classes)
+    values = []
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = "Test:"
     num_processed_samples = 0
@@ -74,12 +76,20 @@ def evaluate(model, data_loader, device, num_classes):
             output = model(image)
             output = output["out"]
 
-            confmat.update(target.flatten(), output.argmax(1).flatten())
+            if metric is None:
+                # Move to CPU for speed.
+                # https://github.com/pytorch/ignite/issues/684
+                # confmat.update(target.flatten(), output.argmax(1).flatten())
+                confmat.update(target.flatten().cpu(), output.argmax(1).flatten().cpu())
+            else:
+                values.append(metric(output, target))
+
             # FIXME need to take into account that the datasets
             # could have been padded in distributed setup
             num_processed_samples += image.shape[0]
 
-        confmat.reduce_from_all_processes()
+        if metric is None:
+            confmat.reduce_from_all_processes()
 
     num_processed_samples = utils.reduce_across_processes(num_processed_samples)
     if (
@@ -95,7 +105,10 @@ def evaluate(model, data_loader, device, num_classes):
             "Setting the world size to 1 is always a safe bet."
         )
 
-    return confmat
+    if metric is None:
+        return confmat
+
+    return torch.tensor(values).mean()
 
 
 def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, print_freq, scaler=None):
@@ -179,6 +192,9 @@ def main(args):
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         model_without_ddp = model.module
 
+    loss = eval(args.loss)
+    metric = eval(args.metric) if args.metric else None
+
     params_to_optimize = [
         {"params": [p for p in model_without_ddp.backbone.parameters() if p.requires_grad]},
         {"params": [p for p in model_without_ddp.classifier.parameters() if p.requires_grad]},
@@ -238,8 +254,8 @@ def main(args):
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, args.print_freq, scaler)
-        confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes)
+        train_one_epoch(model, loss, optimizer, data_loader, lr_scheduler, device, epoch, args.print_freq, scaler)
+        confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes, metric=metric)
         print(confmat)
         checkpoint = {
             "model": model_without_ddp.state_dict(),
@@ -269,6 +285,8 @@ def get_args_parser(add_help=True):
     parser.add_argument("--transforms", default=None, type=str, help="train and test transforms")
     parser.add_argument("--model", default="fcn_resnet101", type=str, help="model name")
     parser.add_argument("--num-outputs", default=None, type=int, help="number of outputs (classes)")
+    parser.add_argument("--loss", default="criterion", type=str, help="loss function, defaults to cross entropy")
+    parser.add_argument("--metric", default=None, type=str, help="evaluation metric, defaults to confusion matrix")
     parser.add_argument("--aux-loss", action="store_true", help="auxiliar loss")
     parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
     parser.add_argument(
