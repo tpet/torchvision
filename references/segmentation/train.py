@@ -31,6 +31,9 @@ def get_dataset(dir_path, name, image_set, transform, **kwargs):
 
 
 def get_transform(train, args):
+    if args.transforms:
+        return eval(args.transforms)[~train]
+
     if train:
         return presets.SegmentationPresetTrain(base_size=520, crop_size=480)
     elif args.weights and args.test_only:
@@ -263,6 +266,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--data-path", default="/datasets01/COCO/022719/", type=str, help="dataset path")
     parser.add_argument("--dataset", default="coco", type=str, help="dataset name")
     parser.add_argument("--dataset-kwargs", default={}, type=str, help="optional dataset key-value arguments")
+    parser.add_argument("--transforms", default=None, type=str, help="train and test transforms")
     parser.add_argument("--model", default="fcn_resnet101", type=str, help="model name")
     parser.add_argument("--num-outputs", default=None, type=int, help="number of outputs (classes)")
     parser.add_argument("--aux-loss", action="store_true", help="auxiliar loss")
