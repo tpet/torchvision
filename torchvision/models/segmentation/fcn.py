@@ -118,6 +118,7 @@ def fcn_resnet50(
     *,
     weights: Optional[FCN_ResNet50_Weights] = None,
     progress: bool = True,
+    num_inputs: int = 3,
     num_classes: Optional[int] = None,
     aux_loss: Optional[bool] = None,
     weights_backbone: Optional[ResNet50_Weights] = ResNet50_Weights.IMAGENET1K_V1,
@@ -136,6 +137,7 @@ def fcn_resnet50(
             weights are used.
         progress (bool, optional): If True, displays a progress bar of the
             download to stderr. Default is True.
+        num_inputs (int, optional): The number of input channels. Default is 3.
         num_classes (int, optional): number of output classes of the model (including the background).
         aux_loss (bool, optional): If True, it uses an auxiliary loss.
         weights_backbone (:class:`~torchvision.models.ResNet50_Weights`, optional): The pretrained
@@ -159,7 +161,8 @@ def fcn_resnet50(
     elif num_classes is None:
         num_classes = 21
 
-    backbone = resnet50(weights=weights_backbone, replace_stride_with_dilation=[False, True, True])
+    backbone = resnet50(num_inputs=num_inputs, weights=weights_backbone,
+                        replace_stride_with_dilation=[False, True, True])
     model = _fcn_resnet(backbone, num_classes, aux_loss)
 
     if weights is not None:
@@ -176,6 +179,7 @@ def fcn_resnet101(
     *,
     weights: Optional[FCN_ResNet101_Weights] = None,
     progress: bool = True,
+    num_inputs: int = 3,
     num_classes: Optional[int] = None,
     aux_loss: Optional[bool] = None,
     weights_backbone: Optional[ResNet101_Weights] = ResNet101_Weights.IMAGENET1K_V1,
@@ -194,6 +198,7 @@ def fcn_resnet101(
             weights are used.
         progress (bool, optional): If True, displays a progress bar of the
             download to stderr. Default is True.
+        num_inputs (int, optional): The number of input channels. Default is 3.
         num_classes (int, optional): number of output classes of the model (including the background).
         aux_loss (bool, optional): If True, it uses an auxiliary loss.
         weights_backbone (:class:`~torchvision.models.ResNet101_Weights`, optional): The pretrained
@@ -217,7 +222,8 @@ def fcn_resnet101(
     elif num_classes is None:
         num_classes = 21
 
-    backbone = resnet101(weights=weights_backbone, replace_stride_with_dilation=[False, True, True])
+    backbone = resnet101(num_inputs=num_inputs, weights=weights_backbone,
+                         replace_stride_with_dilation=[False, True, True])
     model = _fcn_resnet(backbone, num_classes, aux_loss)
 
     if weights is not None:

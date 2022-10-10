@@ -226,6 +226,7 @@ def deeplabv3_resnet50(
     *,
     weights: Optional[DeepLabV3_ResNet50_Weights] = None,
     progress: bool = True,
+    num_inputs: int = 3,
     num_classes: Optional[int] = None,
     aux_loss: Optional[bool] = None,
     weights_backbone: Optional[ResNet50_Weights] = ResNet50_Weights.IMAGENET1K_V1,
@@ -245,6 +246,7 @@ def deeplabv3_resnet50(
             weights are used.
         progress (bool, optional): If True, displays a progress bar of the
             download to stderr. Default is True.
+        num_inputs (int, optional): The number of input channels. Default is 3.
         num_classes (int, optional): number of output classes of the model (including the background)
         aux_loss (bool, optional): If True, it uses an auxiliary loss
         weights_backbone (:class:`~torchvision.models.ResNet50_Weights`, optional): The pretrained weights for the
@@ -264,7 +266,8 @@ def deeplabv3_resnet50(
     elif num_classes is None:
         num_classes = 21
 
-    backbone = resnet50(weights=weights_backbone, replace_stride_with_dilation=[False, True, True])
+    backbone = resnet50(num_inputs=num_inputs, weights=weights_backbone,
+                        replace_stride_with_dilation=[False, True, True])
     model = _deeplabv3_resnet(backbone, num_classes, aux_loss)
 
     if weights is not None:
@@ -281,6 +284,7 @@ def deeplabv3_resnet101(
     *,
     weights: Optional[DeepLabV3_ResNet101_Weights] = None,
     progress: bool = True,
+    num_inputs: int = 3,
     num_classes: Optional[int] = None,
     aux_loss: Optional[bool] = None,
     weights_backbone: Optional[ResNet101_Weights] = ResNet101_Weights.IMAGENET1K_V1,
@@ -300,6 +304,7 @@ def deeplabv3_resnet101(
             weights are used.
         progress (bool, optional): If True, displays a progress bar of the
             download to stderr. Default is True.
+        num_inputs (int, optional): The number of input channels. Default is 3.
         num_classes (int, optional): number of output classes of the model (including the background)
         aux_loss (bool, optional): If True, it uses an auxiliary loss
         weights_backbone (:class:`~torchvision.models.ResNet101_Weights`, optional): The pretrained weights for the
@@ -319,7 +324,8 @@ def deeplabv3_resnet101(
     elif num_classes is None:
         num_classes = 21
 
-    backbone = resnet101(weights=weights_backbone, replace_stride_with_dilation=[False, True, True])
+    backbone = resnet101(num_inputs=num_inputs, weights=weights_backbone,
+                         replace_stride_with_dilation=[False, True, True])
     model = _deeplabv3_resnet(backbone, num_classes, aux_loss)
 
     if weights is not None:
@@ -336,6 +342,7 @@ def deeplabv3_mobilenet_v3_large(
     *,
     weights: Optional[DeepLabV3_MobileNet_V3_Large_Weights] = None,
     progress: bool = True,
+    num_inputs: int = 3,
     num_classes: Optional[int] = None,
     aux_loss: Optional[bool] = None,
     weights_backbone: Optional[MobileNet_V3_Large_Weights] = MobileNet_V3_Large_Weights.IMAGENET1K_V1,
@@ -353,6 +360,7 @@ def deeplabv3_mobilenet_v3_large(
             weights are used.
         progress (bool, optional): If True, displays a progress bar of the
             download to stderr. Default is True.
+        num_inputs (int, optional): The number of input channels. Default is 3.
         num_classes (int, optional): number of output classes of the model (including the background)
         aux_loss (bool, optional): If True, it uses an auxiliary loss
         weights_backbone (:class:`~torchvision.models.MobileNet_V3_Large_Weights`, optional): The pretrained weights
@@ -372,7 +380,7 @@ def deeplabv3_mobilenet_v3_large(
     elif num_classes is None:
         num_classes = 21
 
-    backbone = mobilenet_v3_large(weights=weights_backbone, dilated=True)
+    backbone = mobilenet_v3_large(num_inputs=num_inputs, weights=weights_backbone, dilated=True)
     model = _deeplabv3_mobilenetv3(backbone, num_classes, aux_loss)
 
     if weights is not None:

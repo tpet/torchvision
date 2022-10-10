@@ -125,6 +125,7 @@ def lraspp_mobilenet_v3_large(
     *,
     weights: Optional[LRASPP_MobileNet_V3_Large_Weights] = None,
     progress: bool = True,
+    num_inputs: int = 3,
     num_classes: Optional[int] = None,
     weights_backbone: Optional[MobileNet_V3_Large_Weights] = MobileNet_V3_Large_Weights.IMAGENET1K_V1,
     **kwargs: Any,
@@ -142,6 +143,7 @@ def lraspp_mobilenet_v3_large(
             weights are used.
         progress (bool, optional): If True, displays a progress bar of the
             download to stderr. Default is True.
+        num_inputs (int, optional): The number of input channels. Default is 3.
         num_classes (int, optional): number of output classes of the model (including the background).
         aux_loss (bool, optional): If True, it uses an auxiliary loss.
         weights_backbone (:class:`~torchvision.models.MobileNet_V3_Large_Weights`, optional): The pretrained
@@ -166,7 +168,7 @@ def lraspp_mobilenet_v3_large(
     elif num_classes is None:
         num_classes = 21
 
-    backbone = mobilenet_v3_large(weights=weights_backbone, dilated=True)
+    backbone = mobilenet_v3_large(num_inputs=num_inputs, weights=weights_backbone, dilated=True)
     model = _lraspp_mobilenetv3(backbone, num_classes)
 
     if weights is not None:

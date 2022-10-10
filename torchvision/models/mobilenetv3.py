@@ -135,6 +135,7 @@ class MobileNetV3(nn.Module):
         self,
         inverted_residual_setting: List[InvertedResidualConfig],
         last_channel: int,
+        num_inputs: int = 3,
         num_classes: int = 1000,
         block: Optional[Callable[..., nn.Module]] = None,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
@@ -175,7 +176,7 @@ class MobileNetV3(nn.Module):
         firstconv_output_channels = inverted_residual_setting[0].input_channels
         layers.append(
             Conv2dNormActivation(
-                3,
+                num_inputs,
                 firstconv_output_channels,
                 kernel_size=3,
                 stride=2,
