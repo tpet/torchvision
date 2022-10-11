@@ -11,8 +11,6 @@ except ImportError:
     def tqdm(x, *args, **kwargs):
         return x
 
-rng = np.random.default_rng(135)
-
 
 class GlobDataset(VisionDataset):
 
@@ -37,8 +35,10 @@ class GlobDataset(VisionDataset):
         self.paths = glob(pattern, recursive=True)
         print(f'Found {len(self.paths)} files in {os.path.abspath(pattern)}.')
         self.paths.sort()
-        if randomize:
-            rng.shuffle(self.paths)
+        if randomize is True:
+            randomize = 135
+        if isinstance(randomize, int):
+            np.random.default_rng(randomize).shuffle(self.paths)
         if image_set:
             assert image_set in ('train', 'trainval', 'val', 'test')
             if image_set == 'train':
