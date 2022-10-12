@@ -10,6 +10,7 @@ import torchvision
 import utils
 from coco_utils import get_coco
 from torch import nn
+from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms import functional as F, InterpolationMode
 
 
@@ -62,7 +63,7 @@ def criterion(inputs, target):
     return losses["out"] + 0.5 * losses["aux"]
 
 
-def evaluate(model, data_loader, device, num_classes, metric=None):
+def evaluate(model, data_loader, device, num_classes, metric=None, summary_writer=None, epoch=None):
     model.eval()
     if metric is None:
         confmat = utils.ConfusionMatrix(num_classes)
@@ -71,7 +72,7 @@ def evaluate(model, data_loader, device, num_classes, metric=None):
     header = "Test:"
     num_processed_samples = 0
     with torch.inference_mode():
-        for image, target in metric_logger.log_every(data_loader, 100, header):
+        for i, (image, target) in enumerate(metric_logger.log_every(data_loader, 100, header)):
             image, target = image.to(device), target.to(device)
             output = model(image)
             output = output["out"]
@@ -82,7 +83,10 @@ def evaluate(model, data_loader, device, num_classes, metric=None):
                 # confmat.update(target.flatten(), output.argmax(1).flatten())
                 confmat.update(target.flatten().cpu(), output.argmax(1).flatten().cpu())
             else:
-                values.append(metric(output, target))
+                val = metric(output, target)
+                values.append(val)
+                if summary_writer is not None:
+                    summary_writer.add_scalar('test_metric', val.item(), global_step=epoch * len(data_loader) + i)
 
             # FIXME need to take into account that the datasets
             # could have been padded in distributed setup
@@ -108,19 +112,23 @@ def evaluate(model, data_loader, device, num_classes, metric=None):
     if metric is None:
         return confmat
 
-    return torch.tensor(values).mean()
+    return torch.tensor(values).mean().item()
 
 
-def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, print_freq, scaler=None):
+def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, print_freq, scaler=None,
+                    summary_writer=None):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
     header = f"Epoch: [{epoch}]"
-    for image, target in metric_logger.log_every(data_loader, print_freq, header):
+    for i, (image, target) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
         image, target = image.to(device), target.to(device)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
             output = model(image)
             loss = criterion(output, target)
+
+        if summary_writer is not None:
+            summary_writer.add_scalar('train_loss', loss.item(), global_step=epoch*len(data_loader) + i)
 
         optimizer.zero_grad()
         if scaler is not None:
@@ -211,6 +219,8 @@ def main(args):
         optimizer, lambda x: (1 - x / (iters_per_epoch * (args.epochs - args.lr_warmup_epochs))) ** 0.9
     )
 
+    summary_writer = SummaryWriter(log_dir=args.output_dir)
+
     if args.lr_warmup_epochs > 0:
         warmup_iters = iters_per_epoch * args.lr_warmup_epochs
         args.lr_warmup_method = args.lr_warmup_method.lower()
@@ -254,9 +264,21 @@ def main(args):
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        train_one_epoch(model, loss, optimizer, data_loader, lr_scheduler, device, epoch, args.print_freq, scaler)
-        confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes, metric=metric)
-        print(confmat)
+        train_one_epoch(model, loss, optimizer, data_loader, lr_scheduler, device, epoch, args.print_freq, scaler,
+                        summary_writer=summary_writer)
+        confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes, metric=metric,
+                           summary_writer=summary_writer, epoch=epoch)
+        print('Test:', confmat)
+        if summary_writer is not None:
+            if isinstance(confmat, float):
+                summary_writer.add_scalar('test_metric/epoch', confmat, global_step=epoch)
+            elif isinstance(confmat, utils.ConfusionMatrix):
+                acc_global, acc, iou = confmat.compute()
+                summary_writer.add_scalar('test_acc/global', acc_global.item() * 100, global_step=epoch)
+                summary_writer.add_scalar('test_iou/global', iou.mean().item() * 100, global_step=epoch)
+                for i, (acc_i, iou_i) in enumerate(zip(acc, iou)):
+                    summary_writer.add_scalar(f'test_acc/class{i}', acc_i.item() * 100, global_step=epoch)
+                    summary_writer.add_scalar(f'test_iou/class{i}', iou_i.item() * 100, global_step=epoch)
         checkpoint = {
             "model": model_without_ddp.state_dict(),
             "optimizer": optimizer.state_dict(),
