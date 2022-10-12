@@ -63,7 +63,7 @@ def criterion(inputs, target):
     return losses["out"] + 0.5 * losses["aux"]
 
 
-def evaluate(model, data_loader, device, num_classes, metric=None, summary_writer=None, epoch=None):
+def evaluate(model, data_loader, device, num_classes, metric=None, summary_writer=None, epoch=0):
     model.eval()
     if metric is None:
         confmat = utils.ConfusionMatrix(num_classes)
@@ -110,9 +110,22 @@ def evaluate(model, data_loader, device, num_classes, metric=None, summary_write
         )
 
     if metric is None:
-        return confmat
+        acc_global, acc, iou = confmat.compute()
+        epoch_metric = acc_global.item()
+        if summary_writer is not None:
+            summary_writer.add_scalar('test_acc/average/epoch', acc_global.item() * 100, global_step=epoch)
+            summary_writer.add_scalar('test_iou/average/epoch', iou.mean().item() * 100, global_step=epoch)
+            for i, (acc_i, iou_i) in enumerate(zip(acc, iou)):
+                summary_writer.add_scalar(f'test_acc/class{i}/epoch', acc_i.item() * 100, global_step=epoch)
+                summary_writer.add_scalar(f'test_iou/class{i}/epoch', iou_i.item() * 100, global_step=epoch)
+        print('Test:', confmat)
+    else:
+        epoch_metric = torch.tensor(values).mean().item()
+        if summary_writer is not None:
+            summary_writer.add_scalar('test_metric/epoch', epoch_metric, global_step=epoch)
+        print('Test:', epoch_metric)
 
-    return torch.tensor(values).mean().item()
+    return epoch_metric
 
 
 def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, print_freq, scaler=None,
@@ -256,29 +269,19 @@ def main(args):
         # We disable the cudnn benchmarking because it can noticeably affect the accuracy
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
-        confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes)
-        print(confmat)
+        value = evaluate(model, data_loader_test, device=device, num_classes=num_classes, metric=metric,
+                         summary_writer=summary_writer, epoch=0)
         return
 
+    best_metric = -float('inf')
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
         train_one_epoch(model, loss, optimizer, data_loader, lr_scheduler, device, epoch, args.print_freq, scaler,
                         summary_writer=summary_writer)
-        confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes, metric=metric,
-                           summary_writer=summary_writer, epoch=epoch)
-        print('Test:', confmat)
-        if summary_writer is not None:
-            if isinstance(confmat, float):
-                summary_writer.add_scalar('test_metric/epoch', confmat, global_step=epoch)
-            elif isinstance(confmat, utils.ConfusionMatrix):
-                acc_global, acc, iou = confmat.compute()
-                summary_writer.add_scalar('test_acc/global', acc_global.item() * 100, global_step=epoch)
-                summary_writer.add_scalar('test_iou/global', iou.mean().item() * 100, global_step=epoch)
-                for i, (acc_i, iou_i) in enumerate(zip(acc, iou)):
-                    summary_writer.add_scalar(f'test_acc/class{i}', acc_i.item() * 100, global_step=epoch)
-                    summary_writer.add_scalar(f'test_iou/class{i}', iou_i.item() * 100, global_step=epoch)
+        epoch_metric = evaluate(model, data_loader_test, device=device, num_classes=num_classes, metric=metric,
+                                summary_writer=summary_writer, epoch=epoch)
         checkpoint = {
             "model": model_without_ddp.state_dict(),
             "optimizer": optimizer.state_dict(),
@@ -288,7 +291,10 @@ def main(args):
         }
         if args.amp:
             checkpoint["scaler"] = scaler.state_dict()
-        utils.save_on_master(checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth"))
+
+        if epoch_metric > best_metric:
+            best_metric = epoch_metric
+            utils.save_on_master(checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth"))
         utils.save_on_master(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
 
     total_time = time.time() - start_time
