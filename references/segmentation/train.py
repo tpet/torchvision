@@ -84,7 +84,10 @@ def evaluate(model, data_loader, device, num_classes, metric=None, summary_write
                 confmat.update(target.flatten().cpu(), output.argmax(1).flatten().cpu())
             else:
                 val = metric(output, target)
-                values.append(val)
+                if not torch.isfinite(val).item():
+                    warnings.warn(f"Non-finite metric value: {val}. Skipping.")
+                else:
+                    values.append(val)
                 if summary_writer is not None:
                     summary_writer.add_scalar('test_metric', val.item(), global_step=epoch * len(data_loader) + i)
 
@@ -139,6 +142,10 @@ def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, devi
         with torch.cuda.amp.autocast(enabled=scaler is not None):
             output = model(image)
             loss = criterion(output, target)
+
+        if not torch.isfinite(loss).item():
+            warnings.warn(f'Non-finite loss {loss}. Skipping.')
+            continue
 
         if summary_writer is not None:
             summary_writer.add_scalar('train_loss', loss.item(), global_step=epoch*len(data_loader) + i)
